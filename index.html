@@ -11859,11 +11859,16 @@ function drawPauseScreen() {
     x += lw + gap;
   }
   if (showOpts) { 
-    const rh = 40, h = oRows.length * rh + 26;
+    const rh = 40, vis = Math.max(3, Math.min(oRows.length, Math.floor((maxH - 26) / rh))), h = vis * rh + 26;
+    const orden = oRows.map((r, i) => i).sort((a, b) => (oRows[a].name === 'Volver') - (oRows[b].name === 'Volver')); 
+    const pos = orden.indexOf(UI.shopSel);
+    UI.optScroll = Math.max(0, Math.min(UI.optScroll || 0, oRows.length - vis));
+    if (inOpts && pos >= 0) { if (pos < UI.optScroll) UI.optScroll = pos; if (pos >= UI.optScroll + vis) UI.optScroll = pos - vis + 1; }
     codexPanel(x, top, ow, h);
     const lx = x + 18, cx0 = x + Math.round(ow * 0.42), cw = ow - (cx0 - x) - 40;
-    oRows.forEach((r, i) => {
-      const ry = top + 14 + i * rh, on = inOpts && i === UI.shopSel;
+    const valW = Math.min(150, Math.round(ow * 0.36));
+    orden.slice(UI.optScroll, UI.optScroll + vis).forEach((i, k) => {
+      const r = oRows[i], ry = top + 14 + k * rh, on = inOpts && i === UI.shopSel;
       if (inOpts && mouse.x > x && mouse.x < x + ow && mouse.y > ry && mouse.y < ry + rh && (UI.mouseMoved || 0) > 0) UI.shopSel = i;
       if (on) { rect('rgba(47,95,168,.12)', x + 8, ry - 2, ow - 16, rh - 4); }
       if (r.name === 'Volver') {
@@ -11872,7 +11877,10 @@ function drawPauseScreen() {
         return;
       }
       const label = { 'Volumen general':'General', 'Volumen de la música':'Música', 'Volumen de efectos y ambiente':'Efectos', 'Duración de los mensajes':'Texto', 'Guardado automático':'Guardar', 'Contorno de personajes':'Contorno' }[r.name] || r.name;
-      text((on ? '▸ ' : '') + label, lx, ry + 22, 15, UIC.ink, 'left', on);
+      let nm = (on ? '▸ ' : '') + label; ctx.font = `15px ${FONT}`;
+      const anchoNombre = ['General', 'Música', 'Efectos', 'Texto', 'Guardar', 'Contorno'].includes(label) ? cx0 - lx - 6 : ow - 44 - valW;
+      while (nm.length > 4 && ctx.measureText(nm).width > anchoNombre) nm = nm.slice(0, -2) + '…';
+      text(nm, lx, ry + 22, 15, UIC.ink, 'left', on);
       const key = { General:'vol', 'Música':'music', Efectos:'sfx', Texto:'msg', Guardar:'auto', Contorno:'outline' }[label];
       if (key === 'vol' || key === 'music' || key === 'sfx') {
         const sw = cw - 34;
@@ -11887,8 +11895,22 @@ function drawPauseScreen() {
           designBtn(bx, ry + 4, bw, 28, l, PREFS[key] === v, bw < 64 ? 11 : 12);
           if (inOpts) UI.optHits.push({ x:bx, y:ry + 4, w:bw, h:28, act:() => { PREFS[key] = v; savePrefs(); sfx('click'); UI.shopSel = i; } });
         });
+      } else { 
+        const bx = x + ow - 18 - valW;
+        let v = String(r.price ?? ''); ctx.font = `bold 12px ${FONT}`;
+        while (v.length > 3 && ctx.measureText(v).width > valW - 14) v = v.slice(0, -2) + '…';
+        designBtn(bx, ry + 4, valW, 28, v, on, 12);
+        if (inOpts) UI.optHits.push({ x:x + 8, y:ry, w:ow - 16, h:rh - 4, act:() => { UI.shopSel = i; r.buy?.(); } });
       }
     });
+    if (UI.optScroll > 0) { 
+      text('▲', x + ow/2, top + 11, 11, UIC.muted, 'center');
+      if (inOpts) UI.optHits.push({ x, y:top, w:ow, h:14, act:() => { UI.shopSel = orden[Math.max(0, UI.optScroll - 1)]; } });
+    }
+    if (UI.optScroll + vis < oRows.length) {
+      text('▼', x + ow/2, top + h - 3, 11, UIC.muted, 'center');
+      if (inOpts) UI.optHits.push({ x, y:top + h - 14, w:ow, h:14, act:() => { UI.shopSel = orden[Math.min(orden.length - 1, UI.optScroll + vis)]; } });
+    }
     if (!inOpts) UI.optHits.push({ x, y:top, w:ow, h, act:() => { UI.ajustesFrom = 'pausa'; openMenu('ajustes'); } });
   }
   const hint = inOpts ? '[Esc] Volver     [Enter] Cambiar     [◂ ▸] Ajustar' : '[Esc] Volver     [Enter] Aceptar     [▲▼] Elegir';
@@ -45571,11 +45593,17 @@ function mundoImg(key, make, w, h) {
   let im = ARTE_MUNDO.imgs.get(key);
   if (!im) {
     im = new Image(); ARTE_MUNDO.pendientes++;
-    im.onload = im.onerror = () => { if (--ARTE_MUNDO.pendientes === 0) try { TERRAIN_CACHE.clear(); } catch (e) {} };
+    im.onload = im.onerror = () => {
+      if (im.naturalWidth) try { 
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        c.getContext('2d').drawImage(im, 0, 0, w, h); ARTE_MUNDO.imgs.set(key, c);
+      } catch (e) {}
+      if (--ARTE_MUNDO.pendientes === 0) try { TERRAIN_CACHE.clear(); } catch (e) {}
+    };
     try { im.src = CdmMundo.url(CdmMundo.svg(make(), w, h)); } catch (e) { console.warn('[mundo]', key, e); }
     ARTE_MUNDO.imgs.set(key, im);
   }
-  return im.complete && im.naturalWidth ? im : null;
+  return im instanceof HTMLCanvasElement ? im : null;
 }
 
 const ARTE_LOOK_OK = new Set(['skin', 'cloth', 'accent', 'hair', 'band', 'skirt', 'female', 'quech', 'herb', 'style', 'curly', 'eye', 'cinta', 'pluma', 'fav', 'bundle', 'pick', 'basket', 'brush']);
@@ -45732,6 +45760,57 @@ verIntro = function (alTerminar) {
   v.volume = Math.max(0, Math.min(1, PREFS.vol || 1));
   v.play().catch(() => { v.muted = true; v.play().catch(() => cerrar(true)); }); 
   return caja;
+};
+
+
+
+
+
+const MOVIL = { k:1, estilo:null };
+function movilEscala() {
+  const touch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+  const lado = Math.min(innerWidth, innerHeight);
+  return touch && lado < 640 ? Math.max(0.62, Math.min(1, lado / 520)) : 1;
+}
+function movilZoom() {
+  if (MOVIL.k >= 1) return;
+  const base = VH > VW ? VW / (12*TS) : VH / (8*TS);
+  Z = Math.max(0.5, base + (PREFS.zoomAdj || 0) * 0.25);
+}
+const _resizeMovil = resize;
+resize = function () {
+  _resizeMovil();
+  const k = MOVIL.k = movilEscala();
+  if (!MOVIL.estilo) { MOVIL.estilo = document.createElement('style'); document.head.appendChild(MOVIL.estilo); }
+  if (k < 1) {
+    const dpr = Math.min(2, Math.max(1, Math.round(devicePixelRatio || 1)));
+    VW = Math.max(1, innerWidth) / k; VH = Math.max(1, innerHeight) / k;
+    cv.width = Math.round(VW * dpr); cv.height = Math.round(VH * dpr);
+    ctx.setTransform(cv.width / VW, 0, 0, cv.width / VW, 0, 0);
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    
+    MOVIL.estilo.textContent = `#c{width:${innerWidth}px !important;height:${innerHeight}px !important}`;
+  } else MOVIL.estilo.textContent = '';
+  movilZoom();
+};
+addEventListener('resize', () => resize());
+addEventListener('orientationchange', () => setTimeout(() => resize(), 300));
+
+for (const P of [MouseEvent.prototype, window.Touch && Touch.prototype]) if (P) for (const eje of ['clientX', 'clientY']) {
+  const d = Object.getOwnPropertyDescriptor(P, eje);
+  if (d?.get) Object.defineProperty(P, eje, { configurable:true, enumerable:d.enumerable, get() { const v = d.get.call(this); return MOVIL.k < 1 ? v / MOVIL.k : v; } });
+}
+resize();
+
+
+
+const _touchButtonsMovil = touchButtons;
+touchButtons = function () {
+  const bs = _touchButtonsMovil();
+  if (MOVIL.k >= 1) return bs;
+  const parado = VH > VW;
+  return bs.map(b => ['use', 'act', 'atk'].includes(b.id) ? { ...b, x:b.x - 76 }
+    : parado ? { ...b, y:b.y + 160 } : b);
 };
 
 // Textos retirados de la versión pública: no se dibujan.
