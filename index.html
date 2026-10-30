@@ -45690,6 +45690,50 @@ function cancionPortadaRevisa() {
 setInterval(cancionPortadaRevisa, 250);
 for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, cancionPortadaRevisa, true);
 
+
+
+
+const INTRO_VIDEO = 'intro.mp4';
+const _verIntroPagina = verIntro;
+verIntro = function (alTerminar) {
+  if (document.getElementById('introCDM')) return;
+  const caja = document.createElement('div');
+  caja.id = 'introCDM';
+  Object.assign(caja.style, { position:'fixed', inset:'0', zIndex:'9999', background:'#0d1124', opacity:'0', transition:'opacity .6s', display:'flex', alignItems:'center', justifyContent:'center' });
+  const v = document.createElement('video');
+  v.src = INTRO_VIDEO; v.playsInline = true; v.preload = 'auto';
+  Object.assign(v.style, { width:'100%', height:'100%', objectFit:'contain', background:'#0d1124' });
+  const saltar = document.createElement('button');
+  saltar.textContent = 'Saltar ▸';
+  Object.assign(saltar.style, { position:'absolute', right:'18px', bottom:'18px', padding:'8px 16px', font:'italic 700 16px "Alegreya", Georgia, serif', color:'#fff3d2', background:'#1b3a8a', border:'2px solid #d39a26', borderRadius:'6px', cursor:'pointer', opacity:'.85' });
+  caja.append(v, saltar);
+  const musica = PREFS.music;
+  PREFS.music = 0; try { applyVolumes(); } catch (e) {}           
+  let cerrado = false;
+  const cerrar = (yPagina) => {
+    if (cerrado) return; cerrado = true;
+    removeEventListener('keydown', alTeclear, true);
+    caja.style.opacity = '0';
+    setTimeout(() => {
+      v.pause(); caja.remove(); PREFS.music = musica; try { applyVolumes(); } catch (e) {}
+      if (yPagina) return _verIntroPagina(alTerminar);              
+      try { cv.focus?.(); } catch (e) {}
+      if (alTerminar) try { alTerminar(); } catch (e) { console.warn('[intro]', e); }
+    }, yPagina ? 0 : 700);
+  };
+  const alTeclear = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cerrar(); } };
+  addEventListener('keydown', alTeclear, true);
+  saltar.addEventListener('click', e => { e.stopPropagation(); cerrar(); });
+  v.addEventListener('click', () => { v.muted = false; });          
+  v.addEventListener('ended', () => setTimeout(cerrar, 600));
+  v.addEventListener('error', () => cerrar(true));
+  v.addEventListener('loadeddata', () => { caja.style.opacity = '1'; });
+  document.body.appendChild(caja);
+  v.volume = Math.max(0, Math.min(1, PREFS.vol || 1));
+  v.play().catch(() => { v.muted = true; v.play().catch(() => cerrar(true)); }); 
+  return caja;
+};
+
 // Textos retirados de la versión pública: no se dibujan.
 const TOKEN_PUBLICO = /(?:·x|_x)[0-9a-f]{6}/;
 const _textPublico = text;
