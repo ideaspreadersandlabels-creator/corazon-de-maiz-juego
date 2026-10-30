@@ -45819,7 +45819,7 @@ touchButtons = function () {
 
 const VERSION_JUEGO = '30 oct · celular 2';
 if (movilEscala() < 1) {
-  Object.defineProperty(window, 'devicePixelRatio', { configurable:true, get:() => 1 });
+  try { Object.defineProperty(window, 'devicePixelRatio', { configurable:true, get:() => 1 }); } catch (e) {} 
   resize(); dispatchEvent(new Event('resize'));
 }
 const _updateLigero = update;
