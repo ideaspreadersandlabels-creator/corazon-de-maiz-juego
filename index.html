@@ -10600,16 +10600,20 @@ function drawHUD() {
 
   
   
+  const CEL = typeof MOVIL !== 'undefined' && MOVIL.k < 1; 
   const eh = 140, ex = VW-34, ey = VH - eh - (VW < 640 ? 110 : 20);
-  rect('#5a3a1e', ex, ey, 24, eh); rect('#2a1a0c', ex+4, ey+4, 16, eh-8);
   const f = S.energy / S.maxE;
-  rect(f > 0.3 ? '#5cd65c' : f > 0.12 ? '#f0c040' : '#e04040', ex+4, ey+4 + (eh-8)*(1-f), 16, (eh-8)*f);
-  text('E', ex+12, ey-6, 14, '#fff', 'center');
   
   const hx = ex - 30, fh = S.hp / MAX_HP;
-  rect('#5a3a1e', hx, ey, 24, eh); rect('#2a1a0c', hx+4, ey+4, 16, eh-8);
-  rect(fh > 0.3 ? '#e04848' : '#ff2020', hx+4, ey+4 + (eh-8)*(1-fh), 16, (eh-8)*fh);
-  text('❤', hx+12, ey-6, 13, '#ff6b6b', 'center', false);
+  if (CEL) movilBarras();
+  else {
+    rect('#5a3a1e', ex, ey, 24, eh); rect('#2a1a0c', ex+4, ey+4, 16, eh-8);
+    rect(f > 0.3 ? '#5cd65c' : f > 0.12 ? '#f0c040' : '#e04040', ex+4, ey+4 + (eh-8)*(1-f), 16, (eh-8)*f);
+    text('E', ex+12, ey-6, 14, '#fff', 'center');
+    rect('#5a3a1e', hx, ey, 24, eh); rect('#2a1a0c', hx+4, ey+4, 16, eh-8);
+    rect(fh > 0.3 ? '#e04848' : '#ff2020', hx+4, ey+4 + (eh-8)*(1-fh), 16, (eh-8)*fh);
+    text('❤', hx+12, ey-6, 13, '#ff6b6b', 'center', false);
+  }
   if (UI.hurt > 0) rect(`rgba(255,0,0,${UI.hurt * 0.5})`, 0, 0, VW, VH);
   if (S.sick) {
     rect(`rgba(200,180,60,${0.06 + Math.sin(T*1.5)*0.03})`, 0, 0, VW, VH);
@@ -10640,7 +10644,7 @@ function drawHUD() {
     }
     ctx.save(); ctx.translate(x + sw/2, by + sw/2); ctx.scale(sw/50, sw/50); drawIcon(i, 0, 0); ctx.restore();
     text(String((i+1) % 10), x+7, by+15, 10, '#7a5530');
-    if (i >= 5 && slotBag(i)) text(String(S.inv[slotBag(i).id] || 0), x+sw-6, by+sw-6, 12, '#2a1a0c', 'right');
+    if (i >= 5 && slotBag(i)) text(cuentaCorta(S.inv[slotBag(i).id] || 0), x+sw-6, by+sw-6, 12, '#2a1a0c', 'right');
     if (i < 5) { 
       const st = S.tools[TOOLS[i].id], fr = st.dur / METALS[st.lvl].dur;
       rect('#2a1a0c', x+14, by+5, sw-20, 4);
@@ -10660,12 +10664,13 @@ function drawHUD() {
   rect('#1a1424', tx - 4, by - 30, 5*sw + 8, 20);
   rect('#c45a3a', tx - 4, by - 30, 5*sw + 8, 3);
   rect('#e6d2a8', tx - 2, by - 25, 5*sw + 4, 13);
-  text(`Q ⇄ bolsa ${S.seedPage + 1}/${BAG_PAGES}`, tx + 5*sw/2, by - 15, 12, '#4a2f18', 'center');
+  text(`${UI.touch ? '⇄' : 'Q ⇄'} bolsa ${S.seedPage + 1}/${BAG_PAGES}`, tx + 5*sw/2, by - 15, 12, '#4a2f18', 'center');
+  UI.bolsaTab = { x:tx - 4, y:by - 30, w:5*sw + 8, h:20 };
 
   
   const items = Object.keys(ITEM_NAME).filter(k => S.inv[k] > 0);
   UI.invRect = null;
-  if (items.length) {
+  if (items.length && !CEL) {
     const cols = 4, cs = 38, show = items.slice(0, 8), pw = cols*cs + 16, ph = Math.ceil(show.length/cols)*cs + 34;
     panel(10, 10, pw, ph); UI.invRect = { x:10, y:10, w:pw, h:ph };
     let tip = null;
@@ -10673,7 +10678,7 @@ function drawHUD() {
       const cx = 18 + (i % cols)*cs + cs/2, cy = 18 + Math.floor(i / cols)*cs + cs/2 - 1;
       rect('#d8b77a', cx - 17, cy - 17, 34, 34); rect('#f8ecd0', cx - 15, cy - 15, 30, 30);
       ctx.save(); ctx.translate(cx, cy); ctx.scale(0.72, 0.72); itemIcon(k, 0, 0); ctx.restore();
-      const n = String(S.inv[k]); ctx.font = `bold 11px ${FONT}`;
+      const n = cuentaCorta(S.inv[k]); ctx.font = `bold 11px ${FONT}`;
       const nw = ctx.measureText(n).width + 6; rect('rgba(42,26,12,.85)', cx + 17 - nw, cy + 6, nw, 13);
       text(n, cx + 14, cy + 16, 11, '#fff6d0', 'right');
       if (mouse.x > cx - 17 && mouse.x < cx + 17 && mouse.y > cy - 17 && mouse.y < cy + 17) tip = [k, cx, cy];
@@ -10694,7 +10699,7 @@ function drawHUD() {
   if (S.tut >= 0 && !UI.menu) { 
     const top = VW - 420 >= 320, w = top ? Math.min(470, VW - 420) : Math.min(470, VW - 20), x = VW/2 - w/2, y = top ? 12 : UI.touch ? 250 : 210;
     ctx.font = `bold 13px ${FONT}`;
-    const lines = wrapText(TUTORIAL[S.tut].text, w - 30);
+    const lines = wrapText(UI.touch ? tutorialTactil(TUTORIAL[S.tut].text) : TUTORIAL[S.tut].text, w - 30);
     panel(x, y, w, 40 + lines.length*17);
     text(`🎓 Tutorial ${S.tut + 1}/${TUTORIAL.length}`, x + 16, y + 24, 12, '#b5462f');
     lines.forEach((l, i) => text(l, x + 16, y + 42 + i*17, 13, '#4a2f18'));
@@ -28532,7 +28537,7 @@ drawShop = function () {
       break;
     }
   }
-  if (R20.buscador) {
+  if (R20.buscador && !UI.touch) {
     const label = R20_1.on ? `/${R20_1.q}_` : (R20_1.q ? `"${R20_1.q}" (Esc borra)` : '"/" buscar');
     ctx.font = `bold 12px ${FONT}`;
     const width = Math.max(180, ctx.measureText(label).width + 22);
@@ -32836,10 +32841,12 @@ if (R39.activo) {
     _drawHUDR39();
     if (!S.sprint || ['night', 'love', 'affair', "_x871ab5"].includes(UI.menu)) return;
     const sp = S.sprint, eh = 140, ex = VW - 34, ey = VH - eh - (VW < 640 ? 110 : 20), sx = ex - 60;
-    rect('#5a3a1e', sx, ey, 24, eh); rect('#2a1a0c', sx + 4, ey + 4, 16, eh - 8);
-    const f = sp.stam / sp.max, col = f > 0.5 ? '#5ac8ff' : f > 0.2 ? '#ffd060' : '#ff6060';
-    rect(col, sx + 4, ey + 4 + (eh - 8) * (1 - f), 16, (eh - 8) * f);
-    text('⚡', sx + 12, ey - 6, 13, '#5ac8ff', 'center', false);
+    if (!(typeof MOVIL !== 'undefined' && MOVIL.k < 1)) { 
+      rect('#5a3a1e', sx, ey, 24, eh); rect('#2a1a0c', sx + 4, ey + 4, 16, eh - 8);
+      const f = sp.stam / sp.max, col = f > 0.5 ? '#5ac8ff' : f > 0.2 ? '#ffd060' : '#ff6060';
+      rect(col, sx + 4, ey + 4 + (eh - 8) * (1 - f), 16, (eh - 8) * f);
+      text('⚡', sx + 12, ey - 6, 13, '#5ac8ff', 'center', false);
+    }
     if (sp.cool > 0) text("·xa0dff1", VW/2, 80, 12, '#ff8080', 'center', false);
   };
 
@@ -45668,7 +45675,7 @@ drawGround = function (x, y) {
   if (g !== G.GRASS) for (const [dx, dy, side] of NEIGH) if (gAt(x+dx, y+dy, g) === G.GRASS) orillas += ARTE_LADO[side];
   const im = mundoImg(`t|${nombre}|${orillas}`, () => CdmMundo.TILES[nombre]() + [...orillas].map(d => CdmMundo.TILES['orilla-' + d]()).join(''), 64, 64);
   if (!im) return _drawGroundMundo(x, y);
-  ctx.drawImage(im, px - 0.5, py - 0.5, TS + 1, TS + 1); 
+  ctx.drawImage(im, px - 1, py - 1, TS + 2, TS + 2); 
   if (g === G.GRASS) try { if (seasonLook().frost) rect('rgba(225,235,245,.38)', px, py, TS, TS); } catch (e) {} 
   if (g === G.TILLED) {
     if (S.fert[y][x]) for (let i = 0; i < 6; i++) rect('#3a2410', px + 5 + hash(x+i, y)*20, py + 4 + hash(x, y+i)*22, 3, 2);
@@ -45819,19 +45826,21 @@ touchButtons = function () {
   const bs = _touchButtonsMovil();
   if (MOVIL.k >= 1) return bs;
   const parado = VH > VW, g = MOVIL_BOTON();
-  return bs.map(b => ['use', 'act', 'atk'].includes(b.id) ? { ...b, x:VW - (VW - b.x) * g - 56, y:VH - (VH - b.y) * g, r:b.r * g }
+  const acostado = { use:[VW - 95, VH - 150, 40], act:[VW - 185, VH - 95, 32], atk:[VW - 185, VH - 205, 28] }; 
+  return bs.map(b => ['use', 'act', 'atk'].includes(b.id) ? (parado ? { ...b, x:VW - (VW - b.x) * g - 56, y:VH - (VH - b.y) * g, r:b.r * g }
+      : { ...b, x:acostado[b.id][0], y:acostado[b.id][1], r:acostado[b.id][2] })
     : parado ? { ...b, x:b.x * g, y:340 + (b.y - 180) * g, r:b.r * g }
     : { ...b, x:VW/2 + ((b.y - 180) / 50 - 2.5) * 60, y:VH - 140, r:b.r * g }); 
 };
 { const jx = JOY.x, jy = JOY.y, jr = JOY.r; 
-  JOY.x = () => jx() * MOVIL_BOTON(); JOY.y = () => VH - (VH - jy()) * MOVIL_BOTON();
+  JOY.x = () => jx() * MOVIL_BOTON(); JOY.y = () => MOVIL.k < 1 && VW > VH ? VH - 125 : VH - (VH - jy()) * MOVIL_BOTON();
   Object.defineProperty(JOY, 'r', { configurable:true, get:() => jr * MOVIL_BOTON() }); }
 
 
 
 
 
-const VERSION_JUEGO = '30 oct · celular 3';
+const VERSION_JUEGO = '30 oct · celular 4';
 if (esCelular()) {
   const dprReal = devicePixelRatio || 1;
   try { Object.defineProperty(window, 'devicePixelRatio', { configurable:true, get:() => UI.menu === 'title' ? dprReal : 1 }); } catch (e) {} 
@@ -45854,6 +45863,49 @@ drawMenus = function (...a) {
   if (UI.menu === 'title') { ctx.save(); ctx.globalAlpha = 0.75; text(`versión ${VERSION_JUEGO}`, VW - 8, 14, 10, '#1b3a8a', 'right', false); ctx.restore(); }
   return r;
 };
+
+
+
+
+
+function cuentaCorta(n) {
+  n = +n || 0;
+  return n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace('.0', '') + 'M' : n >= 1e4 ? Math.floor(n / 1e3) + 'k' : String(n);
+}
+function movilBarras() {
+  const filas = [['⚡', S.sprint ? S.sprint.stam / S.sprint.max : null, '#5ac8ff', '#2f7ab8'],
+    ['❤', S.hp / MAX_HP, '#f06060', '#b8302e'], ['E', S.energy / S.maxE, '#7cd070', '#3f9a3a']].filter(r => r[1] != null);
+  const W = Math.max(150, Math.min(220, VW - Math.min(236, VW - 20) - 30)), H = filas.length * 20 + 26, X = 10, Y = 10;
+  codexPanel(X, Y, W, H);
+  const b = Math.max(5, Math.min(14, Math.round(Math.min(W, H) * 0.09))), x0 = X + b + 10, bw = W - 2 * b - 44;
+  filas.forEach(([ic, v, c1, c2], i) => {
+    const y = Y + b + 8 + i * 20, f = Math.max(0, Math.min(1, v));
+    text(ic, x0 + 6, y + 11, 13, ic === 'E' ? TAL.NAVY : c2, 'center', false);
+    const bx = x0 + 18;
+    rect(TAL.COB, bx, y + 1, bw, 12); rect('#e9e2d2', bx + 2, y + 3, bw - 4, 8);
+    const g = ctx.createLinearGradient(0, y + 3, 0, y + 11); g.addColorStop(0, f < 0.2 ? '#ff8a6a' : c1); g.addColorStop(1, f < 0.2 ? '#c0392b' : c2);
+    ctx.fillStyle = g; ctx.fillRect(bx + 2, y + 3, (bw - 4) * f, 8);
+  });
+}
+function tutorialTactil(s) {
+  return s.replace(/\s*\(tecla \d\)/g, '').replace(/pulsa Espacio/g, 'toca Usar').replace(/con Tab/g, 'con 🎒')
+    .replace(/con M\b/g, 'con 🗺').replace(/con J\b/g, 'con 📜').replace(/\(E\)/g, '(botón E)').replace(/\(E frente/g, '(botón E frente');
+}
+const _pointerDownBolsa = pointerDown;
+pointerDown = function (px, py, button) {
+  const t = UI.bolsaTab;
+  if (UI.touch && !UI.menu && t && px >= t.x && px <= t.x + t.w && py >= t.y - 8 && py <= t.y + t.h + 8) {
+    S.seedPage = (S.seedPage + 1) % BAG_PAGES; toast(`Bolsa: página ${S.seedPage + 1} de ${BAG_PAGES}`); return;
+  }
+  return _pointerDownBolsa(px, py, button);
+};
+
+const AVISO_TECNICO = /^(⚡ R28|🖼 Grading|✨ Postprocesado|R28 )/;
+const _toastTecnico = toast;
+toast = function (msg, ...a) { if (AVISO_TECNICO.test(String(msg))) return; return _toastTecnico(msg, ...a); };
+UI.toasts = (UI.toasts || []).filter(t => !AVISO_TECNICO.test(String(t.msg)));
+
+if (typeof R28 !== 'undefined') R28.activo = false;
 
 // Textos retirados de la versión pública: no se dibujan.
 const TOKEN_PUBLICO = /(?:·x|_x)[0-9a-f]{6}/;
