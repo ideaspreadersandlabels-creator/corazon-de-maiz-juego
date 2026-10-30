@@ -45813,6 +45813,31 @@ touchButtons = function () {
     : parado ? { ...b, y:b.y + 160 } : b);
 };
 
+
+
+
+
+const VERSION_JUEGO = '30 oct · celular 2';
+if (movilEscala() < 1) {
+  Object.defineProperty(window, 'devicePixelRatio', { configurable:true, get:() => 1 });
+  resize(); dispatchEvent(new Event('resize'));
+}
+const _updateLigero = update;
+update = function (dt) {
+  const r = _updateLigero(dt);
+  if (!UI.movilLigero && UI.grafListo && MOVIL.k < 1) {
+    UI.movilLigero = true; UI.lowFx = true;
+    if (PREFS.graf.calidad === 'auto' && typeof R14 !== 'undefined') { R14.level = Math.max(R14.level, 2); try { aplicarCalidad(R14.level); } catch (e) {} }
+  }
+  return r;
+};
+const _drawMenusVersion = drawMenus;
+drawMenus = function (...a) {
+  const r = _drawMenusVersion(...a);
+  if (UI.menu === 'title') { ctx.save(); ctx.globalAlpha = 0.75; text(`versión ${VERSION_JUEGO}`, VW - 8, VH - 8, 10, '#fff6d8', 'right', false); ctx.restore(); }
+  return r;
+};
+
 // Textos retirados de la versión pública: no se dibujan.
 const TOKEN_PUBLICO = /(?:·x|_x)[0-9a-f]{6}/;
 const _textPublico = text;
